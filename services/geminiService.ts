@@ -5,9 +5,12 @@ import type { QACFix, DetectedImage } from '../types';
 const OCR_MODEL = 'gemini-2.5-flash';
 const IMAGE_MODEL = 'gemini-2.5-flash-image';
 
+// Use the Vercel-compatible environment variable
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
+
 export async function performAdvancedOCR(imageBase64: string, onProgress: (progress: number, status: string) => void) {
     onProgress(10, "Initializing AI-powered text extraction...");
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: API_KEY });
     
     onProgress(30, "Connecting to Google Gemini AI for OCR...");
     
@@ -51,7 +54,7 @@ CONFIDENCE: [your confidence percentage from 0-100 as an integer]`;
 }
 
 async function detectImages(imageBase64: string): Promise<DetectedImage[]> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: API_KEY });
     const imagePrompt = `Analyze this image and identify ONLY non-text visual elements (photographs, diagrams, charts, etc.). EXCLUDE plain text, headings, and tables. For each visual element found, provide its bounding box coordinates as percentages from the top-left corner.
 
 Respond in this exact format:
@@ -85,7 +88,7 @@ COORDINATES: [one per line: "x_percent,y_percent,width_percent,height_percent,de
 
 
 export async function performQAC(originalText: string, imageBase64: string): Promise<{ correctedText: string, fixes: QACFix[] }> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: API_KEY });
     const prompt = `You are an expert text and mathematical expression correction specialist. Analyze the following OCR-extracted text, using the provided image as the absolute source of truth.
 
 **CRITICAL INSTRUCTIONS FOR TEXT CORRECTION:**
@@ -142,7 +145,7 @@ FIXES: [list each fix in format: "ORIGINAL|CORRECTED|TYPE|DESCRIPTION" one per l
 }
 
 export async function enhanceAndRedrawImage(imageBase64: string, colorize: boolean): Promise<string> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: API_KEY });
     
     const prompt = `Enhance this image with better lighting, clarity, and sharpness. ${colorize ? 'Also, colorize it realistically.' : ''} Return only the image.`;
 
