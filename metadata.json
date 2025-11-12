@@ -1,0 +1,5 @@
+{
+  "name": "VisionCraft OCR",
+  "description": "An application that uses Gemini to perform Optical Character Recognition (OCR) on an uploaded image.",
+  "requestFramePermissions": []
+}
