@@ -7,11 +7,14 @@ import { LeftPanel } from './components/LeftPanel';
 import { MiddlePanel } from './components/MiddlePanel';
 import { RightPanel } from './components/RightPanel';
 import { performAdvancedOCR, performQAC, enhanceAndRedrawImage } from './services/geminiService';
+import { ApiKeySelector } from './components/ApiKeySelector';
 
 import * as pdfjs from 'pdfjs-dist';
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs`;
 
 function App() {
+  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileType, setFileType] = useState<'pdf' | 'image' | null>(null);
   const [pdfDocument, setPdfDocument] = useState<pdfjs.PDFDocumentProxy | null>(null);
@@ -33,6 +36,20 @@ function App() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const originalCanvasData = useRef<ImageData | null>(null);
+
+  useEffect(() => {
+    checkApiKey();
+  }, []);
+
+  const checkApiKey = async () => {
+    try {
+      const keyIsSet = await (window as any).aistudio.hasSelectedApiKey();
+      setHasApiKey(keyIsSet);
+    } catch (e) {
+      console.error('Failed to check for API key:', e);
+      setHasApiKey(false);
+    }
+  };
 
   const renderPage = useCallback(async (
     file: File,
@@ -102,6 +119,8 @@ function App() {
       setFileError("Unsupported file type. Please upload a PDF or an image.");
       return;
     }
+
+    setIsLoadingFile(true); // Show loader immediately
     setFileError(null);
     setSelectedFile(file);
     setFileType(type);
@@ -109,7 +128,12 @@ function App() {
     setExtractions([]);
     setActiveExtraction(null);
     setZoom(100);
-    renderPage(file, type, 1, 100, true);
+    
+    // Defer heavy processing to let UI update
+    setTimeout(() => {
+        renderPage(file, type, 1, 100, true);
+    }, 50);
+
   }, [renderPage]);
 
   const handlePageChange = (newPage: number) => {
@@ -171,15 +195,43 @@ function App() {
       };
 
       const result = await performAdvancedOCR(imageBase64, updateProgress);
+      
+      // We need to create base64 for each detected image from the original canvas
+      const detectedImagesWithData = [];
+      if (originalCanvasData.current) {
+          const tempCanvas = document.createElement('canvas');
+          const tempCtx = tempCanvas.getContext('2d');
+          tempCanvas.width = originalCanvasData.current.width;
+          tempCanvas.height = originalCanvasData.current.height;
+          tempCtx?.putImageData(originalCanvasData.current, 0, 0);
+
+          for (const img of result.detectedImages) {
+              const cropCanvas = document.createElement('canvas');
+              const cropCtx = cropCanvas.getContext('2d');
+              const x = (img.x / 100) * tempCanvas.width;
+              const y = (img.y / 100) * tempCanvas.height;
+              const width = (img.width / 100) * tempCanvas.width;
+              const height = (img.height / 100) * tempCanvas.height;
+              
+              cropCanvas.width = width;
+              cropCanvas.height = height;
+              cropCtx?.drawImage(tempCanvas, x, y, width, height, 0, 0, width, height);
+              
+              detectedImagesWithData.push({
+                  ...img,
+                  base64: cropCanvas.toDataURL('image/png').split(',')[1]
+              });
+          }
+      }
 
       const newExtraction: ExtractedContent = {
         ...result,
+        detectedImages: detectedImagesWithData,
         id: `ext_${Date.now()}`,
         pageNumber: currentPage,
         fileName: selectedFile?.name || 'file',
         fileType: fileType!,
         isQACProcessed: false,
-        // Fix: Add timestamp for history panel
         timestamp: new Date(),
       };
 
@@ -189,7 +241,13 @@ function App() {
     } catch (error) {
       console.error("Error extracting text:", error);
       const message = error instanceof Error ? error.message : "Failed to extract text.";
-      setFileError(message);
+      // Check for common API key error
+      if (message.includes("API key not valid")) {
+          setFileError("API Key is not valid. Please select a valid key.");
+          setHasApiKey(false); // Force re-selection
+      } else {
+          setFileError(message);
+      }
       setOcrStatus("Extraction failed");
     } finally {
       setIsProcessing(false);
@@ -278,6 +336,18 @@ function App() {
         return newExtraction;
     });
   };
+
+  if (hasApiKey === null) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+        {/* You can add a spinner here */}
+      </div>
+    );
+  }
+
+  if (!hasApiKey) {
+    return <ApiKeySelector onKeySelected={checkApiKey} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#030712] text-gray-200 flex flex-col font-sans">
