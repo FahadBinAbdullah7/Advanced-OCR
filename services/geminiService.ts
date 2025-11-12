@@ -142,7 +142,14 @@ FIXES: [list each fix in format: "ORIGINAL|CORRECTED|TYPE|DESCRIPTION" one per l
 export async function enhanceAndRedrawImage(apiKey: string, imageBase64: string, colorize: boolean): Promise<string> {
     const ai = new GoogleGenAI({ apiKey });
     
-    const prompt = `Enhance this image with better lighting, clarity, and sharpness. ${colorize ? 'Also, colorize it realistically.' : ''} Return only the image.`;
+    const prompt = `You are an expert image restoration tool. Your task is to enhance the quality of this image for maximum clarity and readability, as if it were for high-accuracy OCR.
+
+CRITICAL INSTRUCTIONS:
+1. **Enhance Quality:** Improve sharpness, contrast, and resolution. Remove noise or compression artifacts.
+2. **Preserve Content ABSOLUTELY:** DO NOT alter, add, or remove ANY existing text, numbers, symbols, lines, diagrams, or markings. The structure and content of the original image must be perfectly maintained.
+3. **No Creative Changes:** Do not "redraw" or "reimagine" any part of the image. This is a technical restoration, not an artistic enhancement.
+${colorize ? '4. **Apply Colorization:** Colorize the image realistically, but this must NOT interfere with the legibility or accuracy of the content from instruction #2.' : ''}
+Return ONLY the enhanced image.`;
 
     const response = await ai.models.generateContent({
         model: IMAGE_MODEL,

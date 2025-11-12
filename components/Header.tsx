@@ -1,7 +1,11 @@
 import React from 'react';
 import { ArrowRightIcon, ImageIcon } from './Icons';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+    onNavigateToImageProcessor: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onNavigateToImageProcessor }) => {
   return (
     <header className="w-full py-4 px-4 sm:px-6 border-b border-gray-700/50">
       <div className="w-full max-w-[100rem] mx-auto flex justify-between items-center">
@@ -20,7 +24,9 @@ export const Header: React.FC = () => {
                 </span>
                 AI OCR ready with Google Gemini
             </p>
-            <button className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300 text-sm">
+            <button 
+                onClick={onNavigateToImageProcessor}
+                className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300 text-sm">
                 <ImageIcon className="h-4 w-4" />
                 <span>Image Processor</span>
                 <ArrowRightIcon className="h-4 w-4" />
