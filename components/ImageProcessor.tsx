@@ -1,5 +1,4 @@
 
-
 import React, { useState, useCallback } from 'react';
 import { enhanceAndRedrawImage } from '../services/geminiService';
 import { ImageIcon, Loader2Icon, SparklesIcon, PaintbrushIcon, ArrowLeftIcon, DownloadIcon, CodeIcon, CopyIcon } from './Icons';
@@ -80,17 +79,17 @@ export const ImageProcessor: React.FC<ImageProcessorProps> = ({ apiKey, onBack }
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans p-4 sm:p-6">
-      <header className="w-full max-w-6xl mx-auto flex items-center mb-6">
+    <div className="min-h-screen bg-gray-900 text-gray-300 flex flex-col font-sans p-4 sm:p-6">
+      <header className="w-full max-w-5xl mx-auto flex items-center mb-6">
         <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
           <ArrowLeftIcon className="h-5 w-5" />
           Back to OCR Tool
         </button>
       </header>
-      <main className="flex-grow w-full max-w-6xl mx-auto">
-        <div className="bg-[#1a1a1a] rounded-xl shadow-lg border border-[#2a2a2a] p-6">
+      <main className="flex-grow w-full max-w-5xl mx-auto">
+        <div className="bg-gray-800 rounded-xl shadow-lg border border-gray-700 p-6">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold gradient-text mb-2">AI Image Processor</h1>
+            <h1 className="text-3xl font-bold text-white mb-2">AI Image Processor</h1>
             <p className="text-gray-400">Enhance quality, improve clarity, and add color to your images using AI.</p>
           </div>
           
@@ -98,7 +97,7 @@ export const ImageProcessor: React.FC<ImageProcessorProps> = ({ apiKey, onBack }
             <div>
               <h2 className="text-xl font-semibold mb-3 text-white">1. Upload & Configure</h2>
               <div
-                className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-[#00aaff] hover:bg-[#2a2a2a]/50 transition-colors bg-black/50"
+                className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-cyan-500 hover:bg-gray-700/50 transition-colors bg-gray-900/50"
                 onClick={() => document.getElementById('image-upload-input')?.click()}
               >
                  <ImageIcon className="w-12 h-12 mb-4 mx-auto text-gray-500" />
@@ -114,14 +113,14 @@ export const ImageProcessor: React.FC<ImageProcessorProps> = ({ apiKey, onBack }
 
               {/* Controls */}
               <div className="mt-4 space-y-4">
-                <div className="flex items-center justify-between bg-black/50 p-3 rounded-lg">
-                    <label htmlFor="colorize-toggle" className="font-semibold flex items-center gap-2 text-white"><PaintbrushIcon className="w-5 h-5 text-[#00aaff]"/> Colorize Image</label>
-                    <input type="checkbox" id="colorize-toggle" checked={colorize} onChange={e => setColorize(e.target.checked)} className="h-5 w-5 rounded bg-[#2a2a2a] border-[#444] text-[#00aaff] focus:ring-[#00aaff]"/>
+                <div className="flex items-center justify-between bg-gray-900/50 p-3 rounded-lg">
+                    <label htmlFor="colorize-toggle" className="font-semibold flex items-center gap-2 text-white"><PaintbrushIcon className="w-5 h-5 text-cyan-400"/> Colorize Image</label>
+                    <input type="checkbox" id="colorize-toggle" checked={colorize} onChange={e => setColorize(e.target.checked)} className="h-5 w-5 rounded bg-gray-700 border-gray-600 text-cyan-500 focus:ring-cyan-600"/>
                 </div>
                 <button
                     onClick={handleEnhance}
                     disabled={!originalImage || isLoading}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#c026d3] to-[#00aaff] hover:scale-[1.03] transition-all disabled:from-gray-600 disabled:to-gray-700 disabled:scale-100 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-500/50"
+                    className="w-full flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-all focus:outline-none focus:ring-4 focus:ring-cyan-500/50"
                 >
                     {isLoading ? <Loader2Icon className="h-5 w-5" /> : <SparklesIcon className="h-5 w-5" />}
                     <span>{isLoading ? 'Processing...' : 'Enhance Image'}</span>
@@ -129,7 +128,7 @@ export const ImageProcessor: React.FC<ImageProcessorProps> = ({ apiKey, onBack }
                 <button
                     onClick={handleConvertToBase64}
                     disabled={!originalImage || isLoading}
-                    className="w-full flex items-center justify-center gap-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] border border-[#444] hover:border-[#00aaff] disabled:opacity-50 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+                    className="w-full flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all"
                 >
                     <CodeIcon className="h-5 w-5" />
                     <span>Convert to Base64</span>
@@ -141,19 +140,19 @@ export const ImageProcessor: React.FC<ImageProcessorProps> = ({ apiKey, onBack }
                         <textarea
                             readOnly
                             value={`Preview: ${base64Result.slice(0, 70)}...`}
-                            className="w-full h-24 bg-black text-gray-400 text-xs font-mono rounded-lg p-2 border border-[#2a2a2a] resize-none focus:ring-1 focus:ring-[#00aaff]"
+                            className="w-full h-24 bg-gray-900/70 text-gray-400 text-xs font-mono rounded-lg p-2 border border-gray-700 resize-none focus:ring-1 focus:ring-cyan-500"
                         />
                         <div className="flex gap-2 justify-end">
                             <button 
                                 onClick={() => handleCopy('url')}
-                                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md transition-colors ${copyStatus === 'url' ? 'bg-green-600 text-white' : 'bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white border border-[#444] hover:border-[#00aaff]'}`}
+                                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md transition-colors ${copyStatus === 'url' ? 'bg-green-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-white'}`}
                             >
                                 <CopyIcon className="w-4 h-4" />
                                 {copyStatus === 'url' ? 'Copied!' : 'Copy Data URL'}
                             </button>
                             <button 
                                 onClick={() => handleCopy('raw')}
-                                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md transition-colors ${copyStatus === 'raw' ? 'bg-green-600 text-white' : 'bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white border border-[#444] hover:border-[#00aaff]'}`}
+                                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md transition-colors ${copyStatus === 'raw' ? 'bg-green-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-white'}`}
                             >
                                 <CodeIcon className="w-4 h-4" />
                                 {copyStatus === 'raw' ? 'Copied!' : 'Copy Raw Base64'}
@@ -170,7 +169,7 @@ export const ImageProcessor: React.FC<ImageProcessorProps> = ({ apiKey, onBack }
                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
                      <h3 className="font-semibold text-gray-400">Original</h3>
-                     <div className="aspect-square bg-black/50 rounded-lg flex items-center justify-center p-2 border border-[#2a2a2a]">
+                     <div className="aspect-square bg-gray-900/50 rounded-lg flex items-center justify-center p-2 border border-gray-700">
                         {originalImage ? <img src={originalImage.url} className="max-w-full max-h-full object-contain rounded"/> : <p className="text-gray-600">No image uploaded</p>}
                      </div>
                   </div>
@@ -178,13 +177,13 @@ export const ImageProcessor: React.FC<ImageProcessorProps> = ({ apiKey, onBack }
                      <div className="flex justify-between items-center">
                         <h3 className="font-semibold text-gray-400">Enhanced</h3>
                         {enhancedImage && (
-                            <a href={enhancedImage} download="enhanced-image.png" className="flex items-center gap-1 text-xs text-[#00aaff] hover:text-cyan-300">
+                            <a href={enhancedImage} download="enhanced-image.png" className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300">
                                 <DownloadIcon className="w-4 h-4" /> Download
                             </a>
                         )}
                      </div>
-                     <div className="aspect-square bg-black/50 rounded-lg flex items-center justify-center p-2 border border-[#2a2a2a]">
-                        {isLoading && !enhancedImage && <Loader2Icon className="w-10 h-10 text-[#00aaff]" />}
+                     <div className="aspect-square bg-gray-900/50 rounded-lg flex items-center justify-center p-2 border border-gray-700">
+                        {isLoading && !enhancedImage && <Loader2Icon className="w-10 h-10 text-cyan-400" />}
                         {!isLoading && enhancedImage && <img src={enhancedImage} className="max-w-full max-h-full object-contain rounded"/>}
                         {!isLoading && !enhancedImage && <p className="text-gray-600">Result will appear here</p>}
                      </div>
