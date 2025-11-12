@@ -15,7 +15,7 @@ interface MiddlePanelProps {
 }
 
 const Card: React.FC<{children: React.ReactNode, className?: string, header?: React.ReactNode}> = ({ children, className, header }) => (
-    <div className={`bg-gray-800 rounded-xl shadow-lg border border-gray-700 p-4 flex flex-col ${className}`}>
+    <div className={`bg-[#1f2937]/60 backdrop-blur-sm rounded-xl shadow-lg border border-white/10 p-4 flex flex-col ${className}`}>
         {header}
         {children}
     </div>
@@ -58,11 +58,9 @@ export const MiddlePanel: React.FC<MiddlePanelProps> = ({ canvasRef, selectedFil
         const canvas = canvasRef.current!;
         const ctx = canvas.getContext('2d')!;
         ctx.putImageData(originalCanvasData.current!, 0, 0);
-        ctx.strokeStyle = 'rgba(34, 211, 238, 0.9)'; // Cyan color
-        ctx.lineWidth = 2 * (window.devicePixelRatio || 1);
-        ctx.setLineDash([6, 6]);
+        ctx.strokeStyle = 'rgba(168, 85, 247, 0.9)';
+        ctx.lineWidth = 2;
         ctx.strokeRect(newRect.x, newRect.y, newRect.width, newRect.height);
-        ctx.setLineDash([]);
         
         setCropRect(newRect);
     };
@@ -94,19 +92,19 @@ export const MiddlePanel: React.FC<MiddlePanelProps> = ({ canvasRef, selectedFil
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-bold text-white">File Preview</h3>
                 <div className="flex items-center gap-2">
-                    <button onClick={() => setIsSelectingArea(!isSelectingArea)} disabled={!selectedFile} className={`p-1.5 rounded-md disabled:opacity-50 transition-colors ${isSelectingArea ? 'bg-cyan-600/80 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>
+                    <button onClick={() => setIsSelectingArea(!isSelectingArea)} disabled={!selectedFile} className={`p-1.5 rounded-md disabled:opacity-50 transition-colors ${isSelectingArea ? 'bg-purple-600/80' : 'bg-gray-700 hover:bg-gray-600'}`}>
                         <ScanSearchIcon className="w-5 h-5"/>
                     </button>
                     <button onClick={() => onZoomChange(zoom - 25)} disabled={!selectedFile || zoom <= 25} className="p-1.5 rounded-md bg-gray-700 hover:bg-gray-600 disabled:opacity-50 transition-colors"><ZoomOutIcon className="w-5 h-5"/></button>
-                    <span className="text-sm font-semibold w-12 text-center text-white">{zoom}%</span>
+                    <span className="text-sm font-semibold w-12 text-center">{zoom}%</span>
                     <button onClick={() => onZoomChange(zoom + 25)} disabled={!selectedFile || zoom >= 200} className="p-1.5 rounded-md bg-gray-700 hover:bg-gray-600 disabled:opacity-50 transition-colors"><ZoomInIcon className="w-5 h-5"/></button>
                 </div>
             </div>
             {isSelectingArea && (
                 <div className="mt-2 flex gap-2 items-center bg-gray-900/50 p-2 rounded-md">
-                    <p className="text-xs text-cyan-300 flex-grow">Draw a box on the preview to select an area for extraction.</p>
-                    <button onClick={handleConfirmCrop} disabled={!cropRect || cropRect.width < 10} className="flex items-center gap-1.5 text-sm bg-cyan-600 px-3 py-1 rounded-md disabled:opacity-50 hover:bg-cyan-700 text-white font-semibold"><CropIcon className="w-4 h-4"/> Confirm</button>
-                    <button onClick={handleCancelCrop} className="flex items-center gap-1.5 text-sm bg-gray-600 px-3 py-1 rounded-md hover:bg-gray-500 text-white"><XIcon className="w-4 h-4"/> Cancel</button>
+                    <p className="text-xs text-purple-300 flex-grow">Draw a box on the preview to select an area.</p>
+                    <button onClick={handleConfirmCrop} disabled={!cropRect || cropRect.width < 10} className="flex items-center gap-1.5 text-sm bg-purple-600 px-2 py-1 rounded-md disabled:opacity-50 hover:bg-purple-700"><CropIcon className="w-4 h-4"/> Crop</button>
+                    <button onClick={handleCancelCrop} className="flex items-center gap-1.5 text-sm bg-gray-600 px-2 py-1 rounded-md hover:bg-gray-500"><XIcon className="w-4 h-4"/> Cancel</button>
                 </div>
             )}
         </div>
@@ -127,7 +125,7 @@ export const MiddlePanel: React.FC<MiddlePanelProps> = ({ canvasRef, selectedFil
                         />
                         {isLoadingFile && (
                             <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-center p-4 rounded-lg">
-                                <Loader2Icon className="w-8 h-8 mb-4 text-cyan-400" />
+                                <Loader2Icon className="w-8 h-8 mb-4 text-purple-400" />
                                 <p className="font-semibold text-white">Rendering file...</p>
                             </div>
                         )}

@@ -11,7 +11,7 @@ import { ApiKeyInput } from './components/ApiKeyInput';
 import { ImageProcessor } from './components/ImageProcessor';
 
 import * as pdfjs from 'pdfjs-dist';
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr/net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs`;
 
 function App() {
   const [apiKey, setApiKey] = useState<string | null>(() => sessionStorage.getItem('gemini-api-key'));
@@ -306,7 +306,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-300 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#030712] text-gray-200 flex flex-col font-sans">
       <Header onNavigateToImageProcessor={() => setView('imageProcessor')} />
       <main className="flex-grow w-full max-w-[100rem] mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-3 flex flex-col gap-6">
