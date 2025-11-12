@@ -5,8 +5,8 @@ import type { QACFix, DetectedImage } from '../types';
 const OCR_MODEL = 'gemini-2.5-flash';
 const IMAGE_MODEL = 'gemini-2.5-flash-image';
 
-// Use the Vercel-compatible environment variable
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
+// Use the platform's standard environment variable for the API key.
+const API_KEY = process.env.API_KEY;
 
 export async function performAdvancedOCR(imageBase64: string, onProgress: (progress: number, status: string) => void) {
     onProgress(10, "Initializing AI-powered text extraction...");
