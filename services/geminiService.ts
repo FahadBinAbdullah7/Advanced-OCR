@@ -5,16 +5,12 @@ import type { QACFix, DetectedImage } from '../types';
 const OCR_MODEL = 'gemini-2.5-flash';
 const IMAGE_MODEL = 'gemini-2.5-flash-image';
 
-// Use the platform's standard environment variable for the API key.
-const API_KEY = process.env.API_KEY;
-
-export async function performAdvancedOCR(imageBase64: string, onProgress: (progress: number, status: string) => void) {
+export async function performAdvancedOCR(apiKey: string, imageBase64: string, onProgress: (progress: number, status: string) => void) {
     onProgress(10, "Initializing AI-powered text extraction...");
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     
     onProgress(30, "Connecting to Google Gemini AI for OCR...");
     
-    // Step 1: Perform OCR
     const ocrPrompt = `You are an expert OCR system. Extract ALL visible text from this image with maximum accuracy.
 
 CRITICAL INSTRUCTIONS:
@@ -44,17 +40,16 @@ CONFIDENCE: [your confidence percentage from 0-100 as an integer]`;
     const text = textMatch ? textMatch[1].trim() : ocrRaw.trim();
     const confidence = confidenceMatch ? parseInt(confidenceMatch[1], 10) : 90;
 
-    // Step 2: Detect Images
     onProgress(85, "Detecting non-text images...");
-    const detectedImages = await detectImages(imageBase64);
+    const detectedImages = await detectImages(apiKey, imageBase64);
     
     onProgress(100, "Extraction and detection complete!");
 
     return { text, confidence, detectedImages };
 }
 
-async function detectImages(imageBase64: string): Promise<DetectedImage[]> {
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
+async function detectImages(apiKey: string, imageBase64: string): Promise<DetectedImage[]> {
+    const ai = new GoogleGenAI({ apiKey });
     const imagePrompt = `Analyze this image and identify ONLY non-text visual elements (photographs, diagrams, charts, etc.). EXCLUDE plain text, headings, and tables. For each visual element found, provide its bounding box coordinates as percentages from the top-left corner.
 
 Respond in this exact format:
@@ -87,8 +82,8 @@ COORDINATES: [one per line: "x_percent,y_percent,width_percent,height_percent,de
 }
 
 
-export async function performQAC(originalText: string, imageBase64: string): Promise<{ correctedText: string, fixes: QACFix[] }> {
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
+export async function performQAC(apiKey: string, originalText: string, imageBase64: string): Promise<{ correctedText: string, fixes: QACFix[] }> {
+    const ai = new GoogleGenAI({ apiKey });
     const prompt = `You are an expert text and mathematical expression correction specialist. Analyze the following OCR-extracted text, using the provided image as the absolute source of truth.
 
 **CRITICAL INSTRUCTIONS FOR TEXT CORRECTION:**
@@ -144,8 +139,8 @@ FIXES: [list each fix in format: "ORIGINAL|CORRECTED|TYPE|DESCRIPTION" one per l
     return { correctedText, fixes };
 }
 
-export async function enhanceAndRedrawImage(imageBase64: string, colorize: boolean): Promise<string> {
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
+export async function enhanceAndRedrawImage(apiKey: string, imageBase64: string, colorize: boolean): Promise<string> {
+    const ai = new GoogleGenAI({ apiKey });
     
     const prompt = `Enhance this image with better lighting, clarity, and sharpness. ${colorize ? 'Also, colorize it realistically.' : ''} Return only the image.`;
 

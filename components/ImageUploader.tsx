@@ -1,5 +1,4 @@
 
-
 import React, { useState, useCallback } from 'react';
 import type { ImageFile } from '../types';
 import { UploadIcon, SpinnerIcon, ArrowLeftIcon, ArrowRightIcon } from './Icons';
@@ -40,8 +39,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload }) =
       if (!context) throw new Error('Could not get canvas context');
       canvas.height = viewport.height;
       canvas.width = viewport.width;
-      // Fix: The 'RenderParameters' for pdf.js requires the 'canvas' property in this environment.
-      await page.render({ canvasContext: context, viewport, canvas }).promise;
+      // Fix: Add canvas to render parameters to satisfy the RenderParameters type.
+      await page.render({ canvas, canvasContext: context, viewport }).promise;
       const url = canvas.toDataURL('image/jpeg', 0.95); // High quality jpeg
       setImageUrl(url);
       const base64 = url.split(',')[1];

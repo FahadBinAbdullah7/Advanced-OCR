@@ -7,11 +7,13 @@ import { LeftPanel } from './components/LeftPanel';
 import { MiddlePanel } from './components/MiddlePanel';
 import { RightPanel } from './components/RightPanel';
 import { performAdvancedOCR, performQAC, enhanceAndRedrawImage } from './services/geminiService';
+import { ApiKeyInput } from './components/ApiKeyInput';
 
 import * as pdfjs from 'pdfjs-dist';
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs`;
 
 function App() {
+  const [apiKey, setApiKey] = useState<string | null>(() => sessionStorage.getItem('gemini-api-key'));
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileType, setFileType] = useState<'pdf' | 'image' | null>(null);
   const [pdfDocument, setPdfDocument] = useState<pdfjs.PDFDocumentProxy | null>(null);
@@ -33,6 +35,11 @@ function App() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const originalCanvasData = useRef<ImageData | null>(null);
+
+  const handleKeySubmit = (key: string) => {
+    sessionStorage.setItem('gemini-api-key', key);
+    setApiKey(key);
+  };
 
   const renderPage = useCallback(async (
     file: File,
@@ -82,7 +89,7 @@ function App() {
         const viewport = page.getViewport({ scale: currentZoom / 100 });
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        // Fix: 'canvas' property is required in render parameters.
+        // Fix: Pass the canvas element to `page.render` as required by the `RenderParameters` type.
         await page.render({ canvas, canvasContext: ctx, viewport }).promise;
         setCurrentPage(pageNum);
         originalCanvasData.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -102,6 +109,7 @@ function App() {
       setFileError("Unsupported file type. Please upload a PDF or an image.");
       return;
     }
+    setIsLoadingFile(true); // Show loader immediately
     setFileError(null);
     setSelectedFile(file);
     setFileType(type);
@@ -109,7 +117,10 @@ function App() {
     setExtractions([]);
     setActiveExtraction(null);
     setZoom(100);
-    renderPage(file, type, 1, 100, true);
+    // Defer heavy processing to allow UI to update
+    setTimeout(() => {
+      renderPage(file, type, 1, 100, true);
+    }, 50);
   }, [renderPage]);
 
   const handlePageChange = (newPage: number) => {
@@ -156,7 +167,10 @@ function App() {
   }
 
   const handleExtractText = async () => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !apiKey) {
+      setFileError("API Key is missing.");
+      return;
+    }
     setIsProcessing(true);
     setFileError(null);
     setOcrProgress(0);
@@ -170,7 +184,7 @@ function App() {
         setOcrStatus(status);
       };
 
-      const result = await performAdvancedOCR(imageBase64, updateProgress);
+      const result = await performAdvancedOCR(apiKey, imageBase64, updateProgress);
 
       const newExtraction: ExtractedContent = {
         ...result,
@@ -179,7 +193,6 @@ function App() {
         fileName: selectedFile?.name || 'file',
         fileType: fileType!,
         isQACProcessed: false,
-        // Fix: Add timestamp for history panel
         timestamp: new Date(),
       };
 
@@ -198,10 +211,12 @@ function App() {
   };
   
   const handlePerformQAC = async () => {
-      if (!activeExtraction || !originalCanvasData.current) return;
+      if (!activeExtraction || !originalCanvasData.current || !apiKey) {
+        setFileError("Cannot perform QAC without an active extraction and API key.");
+        return;
+      }
       setIsQACProcessing(true);
 
-      // We need a base64 of the original, uncropped page for context
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = originalCanvasData.current.width;
       tempCanvas.height = originalCanvasData.current.height;
@@ -214,7 +229,7 @@ function App() {
       const imageBase64 = tempCanvas.toDataURL('image/png').split(',')[1];
       
       try {
-          const result = await performQAC(activeExtraction.text, imageBase64);
+          const result = await performQAC(apiKey, activeExtraction.text, imageBase64);
           const updatedExtraction = {
               ...activeExtraction,
               qacText: result.correctedText,
@@ -233,7 +248,10 @@ function App() {
   };
 
   const handleImageAction = async (imageId: string, action: 'enhance' | 'base64', colorize: boolean) => {
-     if (!activeExtraction?.detectedImages) return;
+     if (!activeExtraction?.detectedImages || !apiKey) {
+       setFileError("Cannot perform image action without an active extraction and API key.");
+       return;
+     }
 
      const updateImageState = (id: string, updates: Partial<ExtractedContent['detectedImages'][0]>) => {
          setActiveExtraction(prev => {
@@ -256,10 +274,9 @@ function App() {
      try {
         const imageBase64 = targetImage.base64;
         if (action === 'enhance') {
-            const resultUrl = await enhanceAndRedrawImage(imageBase64, colorize);
+            const resultUrl = await enhanceAndRedrawImage(apiKey, imageBase64, colorize);
             updateImageState(imageId, { enhancedImageUrl: resultUrl, isProcessing: false });
         } else { // base64
-            // The base64 is already there, we just expose it. For this UI, no server action is needed.
             updateImageState(imageId, { isProcessing: false });
         }
      } catch(error) {
@@ -279,11 +296,14 @@ function App() {
     });
   };
 
+  if (!apiKey) {
+    return <ApiKeyInput onKeySubmit={handleKeySubmit} />;
+  }
+
   return (
     <div className="min-h-screen bg-[#030712] text-gray-200 flex flex-col font-sans">
       <Header />
       <main className="flex-grow w-full max-w-[100rem] mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column */}
         <div className="col-span-12 lg:col-span-3 flex flex-col gap-6">
           <LeftPanel 
             onFileChange={handleFileChange}
@@ -301,7 +321,6 @@ function App() {
           />
         </div>
 
-        {/* Middle Column */}
         <div className="col-span-12 lg:col-span-5 flex flex-col">
           <MiddlePanel 
             canvasRef={canvasRef}
@@ -315,7 +334,6 @@ function App() {
           />
         </div>
 
-        {/* Right Column */}
         <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
            <RightPanel
             extraction={activeExtraction}
