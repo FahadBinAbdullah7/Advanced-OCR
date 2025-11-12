@@ -99,8 +99,8 @@ function App() {
         const viewport = page.getViewport({ scale: currentZoom / 100 });
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        // Fix: 'canvas' property is required in render parameters.
-        await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+        // Fix: The 'RenderParameters' for pdf.js requires the 'canvas' property in this environment.
+        await page.render({ canvasContext: ctx, viewport, canvas }).promise;
         setCurrentPage(pageNum);
         originalCanvasData.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
       }
