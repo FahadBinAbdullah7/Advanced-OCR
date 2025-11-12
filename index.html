@@ -7,9 +7,37 @@
     <title>Advanced OCR Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+      :root {
+        --bg-color: #0d0d0d;
+        --card-color: #1a1a1a;
+        --border-color: #2a2a2a;
+        --text-primary: #e5e7eb;
+        --text-secondary: #9ca3af;
+        --accent-primary: #00aaff;
+        --accent-secondary: #c026d3;
+      }
+      @import url('https://rsms.me/inter/inter.css');
       body {
+        background-color: var(--bg-color);
+        color: var(--text-primary);
+        font-family: 'Inter', sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+      }
+      .gradient-text {
+        background-image: linear-gradient(90deg, var(--accent-secondary), var(--accent-primary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-fill-color: transparent;
+      }
+      @keyframes glow-border {
+        0% { box-shadow: 0 0 5px rgba(0, 170, 255, 0.2), 0 0 2px rgba(192, 38, 211, 0.2); border-color: var(--accent-primary); }
+        50% { box-shadow: 0 0 20px rgba(0, 170, 255, 0.5), 0 0 10px rgba(192, 38, 211, 0.4); border-color: var(--accent-secondary); }
+        100% { box-shadow: 0 0 5px rgba(0, 170, 255, 0.2), 0 0 2px rgba(192, 38, 211, 0.2); border-color: var(--accent-primary); }
+      }
+      .animate-glow-border {
+        animation: glow-border 4s ease-in-out infinite;
       }
     </style>
   <script type="importmap">
@@ -24,7 +52,7 @@
 }
 </script>
 </head>
-  <body class="bg-[#030712] text-gray-100">
+  <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

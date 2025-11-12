@@ -1,5 +1,4 @@
 
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { ExtractedContent, CropRect } from './types';
 import { Header } from './components/Header';
@@ -306,7 +305,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#030712] text-gray-200 flex flex-col font-sans">
+    <div className="min-h-screen flex flex-col font-sans">
       <Header onNavigateToImageProcessor={() => setView('imageProcessor')} />
       <main className="flex-grow w-full max-w-[100rem] mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-3 flex flex-col gap-6">
