@@ -202,7 +202,16 @@ function App() {
       setOcrStatus("Text extraction completed successfully!");
     } catch (error) {
       console.error("Error extracting text:", error);
-      const message = error instanceof Error ? error.message : "Failed to extract text.";
+      let message = "An unexpected error occurred during text extraction.";
+      if (error instanceof Error) {
+          if (error.message.toLowerCase().includes('token')) {
+              message = "The document contains too much text to process at once. Please try selecting a smaller area with the crop tool.";
+          } else if (error.message.includes('API key not valid')) {
+              message = "Your API key is not valid. Please check and enter it again.";
+          } else {
+              message = `Failed to extract text. The AI returned an error: ${error.message}`;
+          }
+      }
       setFileError(message);
       setOcrStatus("Extraction failed");
     } finally {
@@ -241,7 +250,14 @@ function App() {
           setExtractions(prev => prev.map(ext => ext.id === activeExtraction.id ? updatedExtraction : ext));
       } catch (error) {
           console.error("Error performing QAC:", error);
-          const message = error instanceof Error ? error.message : "Failed to perform QAC.";
+          let message = "An unexpected error occurred during QAC processing.";
+          if (error instanceof Error) {
+              if (error.message.toLowerCase().includes('token')) {
+                  message = "The document contains too much text to process for QAC. This can happen on very dense pages.";
+              } else {
+                  message = `Failed to perform QAC. The AI returned an error: ${error.message}`;
+              }
+          }
           setFileError(message);
       } finally {
           setIsQACProcessing(false);
@@ -282,7 +298,11 @@ function App() {
         }
      } catch(error) {
         console.error(`Error performing image action ${action}:`, error);
-        setFileError(`Failed to ${action} image.`);
+        let message = `An unexpected error occurred while trying to ${action} the image.`;
+        if (error instanceof Error) {
+             message = `Failed to ${action} image. The AI returned an error: ${error.message}`;
+        }
+        setFileError(message);
         updateImageState(imageId, { isProcessing: false });
      }
   };

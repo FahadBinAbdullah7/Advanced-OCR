@@ -1,5 +1,6 @@
 
-import React, { useRef } from 'react';
+
+import React, { useRef, useState, useEffect } from 'react';
 import { UploadIcon, FileTextIcon, ImageIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, Loader2Icon, AlertCircleIcon } from './Icons';
 
 interface LeftPanelProps {
@@ -25,6 +26,35 @@ const Card: React.FC<{children: React.ReactNode, className?: string}> = ({ child
 
 export const LeftPanel: React.FC<LeftPanelProps> = (props) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [pageInput, setPageInput] = useState(props.currentPage.toString());
+
+    useEffect(() => {
+        setPageInput(props.currentPage.toString());
+    }, [props.currentPage]);
+
+    const handlePageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setPageInput(e.target.value);
+    };
+    
+    const handlePageInputSubmit = () => {
+        const pageNum = parseInt(pageInput, 10);
+        if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= props.totalPages) {
+            if (pageNum !== props.currentPage) {
+                props.onPageChange(pageNum);
+            }
+        } else {
+            // Reset to the current page if the input is invalid
+            setPageInput(props.currentPage.toString());
+        }
+    };
+
+    const handlePageInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            (e.target as HTMLInputElement).blur();
+        }
+    };
+
 
     const handleDragOver = (e: React.DragEvent) => e.preventDefault();
     const handleDrop = (e: React.DragEvent) => {
@@ -69,9 +99,39 @@ export const LeftPanel: React.FC<LeftPanelProps> = (props) => {
                 <Card>
                     <h3 className="text-lg font-bold text-white mb-3">Page Navigation</h3>
                     <div className="flex items-center justify-between gap-2">
-                         <button onClick={() => props.onPageChange(props.currentPage - 1)} disabled={props.currentPage <= 1} className="p-2 rounded-md bg-gray-700 hover:bg-gray-600 disabled:opacity-50"><ChevronLeftIcon className="w-5 h-5"/></button>
-                         <span className="text-sm">Page {props.currentPage} of {props.totalPages}</span>
-                         <button onClick={() => props.onPageChange(props.currentPage + 1)} disabled={props.currentPage >= props.totalPages} className="p-2 rounded-md bg-gray-700 hover:bg-gray-600 disabled:opacity-50"><ChevronRightIcon className="w-5 h-5"/></button>
+                         <button 
+                            onClick={() => props.onPageChange(props.currentPage - 1)} 
+                            disabled={props.currentPage <= 1 || props.isLoadingFile} 
+                            className="p-2 rounded-md bg-gray-700 hover:bg-gray-600 disabled:opacity-50"
+                            aria-label="Previous Page"
+                        >
+                            <ChevronLeftIcon className="w-5 h-5"/>
+                        </button>
+                        <div className="flex items-center justify-center gap-1 text-sm tabular-nums text-gray-300">
+                            <label htmlFor="page-input" className="whitespace-nowrap">Page:</label>
+                            <input
+                                id="page-input"
+                                type="number"
+                                value={pageInput}
+                                onChange={handlePageInputChange}
+                                onBlur={handlePageInputSubmit}
+                                onKeyDown={handlePageInputKeyDown}
+                                disabled={props.isLoadingFile}
+                                className="w-14 h-8 text-center bg-[#0e1320] rounded-lg border border-gray-700 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                min="1"
+                                max={props.totalPages}
+                                aria-current="page"
+                            />
+                            <span className="whitespace-nowrap">of {props.totalPages}</span>
+                        </div>
+                         <button 
+                            onClick={() => props.onPageChange(props.currentPage + 1)} 
+                            disabled={props.currentPage >= props.totalPages || props.isLoadingFile} 
+                            className="p-2 rounded-md bg-gray-700 hover:bg-gray-600 disabled:opacity-50"
+                            aria-label="Next Page"
+                        >
+                            <ChevronRightIcon className="w-5 h-5"/>
+                        </button>
                     </div>
                 </Card>
             )}
