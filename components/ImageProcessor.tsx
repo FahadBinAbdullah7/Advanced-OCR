@@ -4,8 +4,8 @@ import { enhanceAndRedrawImage } from '../services/geminiService';
 import { ImageIcon, Loader2Icon, SparklesIcon, PaintbrushIcon, ArrowLeftIcon, DownloadIcon, CodeIcon, CopyIcon } from './Icons';
 
 interface ImageProcessorProps {
+  apiKey: string;
   onBack: () => void;
-  apiKey: string | null;
 }
 
 // Utility to read file as base64
@@ -18,7 +18,7 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-export const ImageProcessor: React.FC<ImageProcessorProps> = ({ onBack, apiKey }) => {
+export const ImageProcessor: React.FC<ImageProcessorProps> = ({ apiKey, onBack }) => {
   const [originalImage, setOriginalImage] = useState<{ url: string; base64: string } | null>(null);
   const [enhancedImage, setEnhancedImage] = useState<string | null>(null);
   const [base64Result, setBase64Result] = useState<string | null>(null);
@@ -48,18 +48,14 @@ export const ImageProcessor: React.FC<ImageProcessorProps> = ({ onBack, apiKey }
   }, []);
 
   const handleEnhance = async () => {
-    if (!originalImage || !apiKey) return;
+    if (!originalImage) return;
     setError(null);
     setIsLoading(true);
     setEnhancedImage(null);
     try {
-      const resultUrl = await enhanceAndRedrawImage(originalImage.base64, colorize, apiKey);
+      const resultUrl = await enhanceAndRedrawImage(apiKey, originalImage.base64, colorize);
       setEnhancedImage(resultUrl);
     } catch (err) {
-      if (err instanceof Error && err.message.includes('Requested entity was not found')) {
-        setError("Your API key is not valid for this operation. Please check it and refresh the page.");
-        return;
-      }
       setError(err instanceof Error ? err.message : "Failed to enhance image.");
     } finally {
       setIsLoading(false);
@@ -122,7 +118,7 @@ export const ImageProcessor: React.FC<ImageProcessorProps> = ({ onBack, apiKey }
                 </div>
                 <button
                     onClick={handleEnhance}
-                    disabled={!originalImage || isLoading || !apiKey}
+                    disabled={!originalImage || isLoading}
                     className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-all"
                 >
                     {isLoading ? <Loader2Icon className="h-5 w-5" /> : <SparklesIcon className="h-5 w-5" />}

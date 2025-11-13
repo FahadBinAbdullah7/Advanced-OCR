@@ -1,52 +1,11 @@
 
-
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import type { QACFix, DetectedImage } from '../types';
 
 const OCR_MODEL = 'gemini-2.5-flash';
 const IMAGE_MODEL = 'gemini-2.5-flash-image';
-const MAX_RETRIES = 3;
 
-/**
- * A helper function to wrap API calls with a retry mechanism.
- * It specifically catches "overloaded" or "503" errors and retries with exponential backoff.
- * @param apiCall The async function to call.
- * @param onRetry An optional callback to inform the UI about a retry attempt.
- */
-async function apiCallWithRetry<T>(
-    apiCall: () => Promise<T>,
-    onRetry?: (attempt: number, delay: number) => void
-): Promise<T> {
-    let delay = 2000; // 2 seconds initial delay
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        try {
-            return await apiCall();
-        } catch (error: any) {
-            const errorMessage = (error.message || '').toLowerCase();
-            const isOverloaded = errorMessage.includes('overloaded') || errorMessage.includes('503') || errorMessage.includes('unavailable');
-            
-            if (isOverloaded && attempt < MAX_RETRIES) {
-                if (onRetry) {
-                    onRetry(attempt, delay / 1000);
-                }
-                await new Promise(resolve => setTimeout(resolve, delay));
-                delay *= 2; // Exponential backoff
-            } else {
-                 if (isOverloaded) {
-                    // On the last attempt, throw a more user-friendly error
-                    throw new Error("The AI model is currently experiencing high traffic and could not process your request. Please try again in a few minutes.");
-                }
-                // For other errors, or on the last retry, re-throw the original error
-                throw error;
-            }
-        }
-    }
-    // This part should be unreachable due to the loop condition and throws
-    throw new Error("An unexpected error occurred in the retry logic.");
-}
-
-
-export async function performAdvancedOCR(imageBase64: string, onProgress: (progress: number, status: string) => void, apiKey: string) {
+export async function performAdvancedOCR(apiKey: string, imageBase64: string, onProgress: (progress: number, status: string) => void) {
     onProgress(10, "Initializing AI-powered text extraction...");
     const ai = new GoogleGenAI({ apiKey });
     
@@ -68,17 +27,11 @@ TEXT: [all extracted text here]
 ---
 CONFIDENCE: [your confidence percentage from 0-100 as an integer]`;
     
-    const ocrCall = () => ai.models.generateContent({
+    const ocrResponse = await ai.models.generateContent({
         model: OCR_MODEL,
         contents: { parts: [{ inlineData: { data: imageBase64, mimeType: 'image/png'}}, { text: ocrPrompt }] },
-        config: { temperature: 0.1, maxOutputTokens: 8192 }
+        config: { temperature: 0.1, maxOutputTokens: 4096 }
     });
-
-    const ocrResponse = await apiCallWithRetry(
-        ocrCall,
-        (attempt) => onProgress(30, `Model is busy. Retrying... (Attempt ${attempt})`)
-    );
-    
     const ocrRaw = ocrResponse.text;
     onProgress(60, "Processing OCR response...");
 
@@ -88,42 +41,14 @@ CONFIDENCE: [your confidence percentage from 0-100 as an integer]`;
     const confidence = confidenceMatch ? parseInt(confidenceMatch[1], 10) : 90;
 
     onProgress(85, "Detecting non-text images...");
-    const detectedImages = await detectImages(imageBase64, apiKey);
+    const detectedImages = await detectImages(apiKey, imageBase64);
     
-    onProgress(90, "Cropping detected images...");
-    const sourceImage = new Image();
-    sourceImage.src = `data:image/png;base64,${imageBase64}`;
-    await new Promise(resolve => {
-        sourceImage.onload = resolve;
-        sourceImage.onerror = resolve; // Don't hang if the image fails to load
-    });
-
-    if (sourceImage.width > 0 && sourceImage.height > 0) {
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-        if (tempCtx) {
-            for (const image of detectedImages) {
-                const sx = (image.x / 100) * sourceImage.width;
-                const sy = (image.y / 100) * sourceImage.height;
-                const sWidth = (image.width / 100) * sourceImage.width;
-                const sHeight = (image.height / 100) * sourceImage.height;
-                
-                if (sWidth > 0 && sHeight > 0) {
-                    tempCanvas.width = sWidth;
-                    tempCanvas.height = sHeight;
-                    tempCtx.drawImage(sourceImage, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
-                    image.base64 = tempCanvas.toDataURL('image/png').split(',')[1];
-                }
-            }
-        }
-    }
-
     onProgress(100, "Extraction and detection complete!");
 
     return { text, confidence, detectedImages };
 }
 
-async function detectImages(imageBase64: string, apiKey: string): Promise<DetectedImage[]> {
+async function detectImages(apiKey: string, imageBase64: string): Promise<DetectedImage[]> {
     const ai = new GoogleGenAI({ apiKey });
     const imagePrompt = `Analyze this image and identify ONLY non-text visual elements (photographs, diagrams, charts, etc.). EXCLUDE plain text, headings, and tables. For each visual element found, provide its bounding box coordinates as percentages from the top-left corner.
 
@@ -131,12 +56,10 @@ Respond in this exact format:
 VISUAL_ELEMENTS_FOUND: [number]
 COORDINATES: [one per line: "x_percent,y_percent,width_percent,height_percent,description", or "None"]`;
 
-    const apiCall = () => ai.models.generateContent({
+    const response = await ai.models.generateContent({
         model: OCR_MODEL,
         contents: { parts: [{ inlineData: { data: imageBase64, mimeType: 'image/png'}}, { text: imagePrompt }] }
     });
-    
-    const response = await apiCallWithRetry(apiCall);
 
     const aiResponse = response.text;
     const images: DetectedImage[] = [];
@@ -159,7 +82,7 @@ COORDINATES: [one per line: "x_percent,y_percent,width_percent,height_percent,de
 }
 
 
-export async function performQAC(originalText: string, imageBase64: string, apiKey: string): Promise<{ correctedText: string, fixes: QACFix[] }> {
+export async function performQAC(apiKey: string, originalText: string, imageBase64: string): Promise<{ correctedText: string, fixes: QACFix[] }> {
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `You are an expert text and mathematical expression correction specialist. Analyze the following OCR-extracted text, using the provided image as the absolute source of truth.
 
@@ -185,13 +108,11 @@ CORRECTED_TEXT: [the fully corrected text with properly formatted math]
 ---
 FIXES: [list each fix in format: "ORIGINAL|CORRECTED|TYPE|DESCRIPTION" one per line, or "None"]`;
 
-    const apiCall = () => ai.models.generateContent({
+    const response = await ai.models.generateContent({
         model: OCR_MODEL,
         contents: { parts: [{ text: prompt }, { inlineData: { data: imageBase64, mimeType: 'image/png' }}] },
         config: { temperature: 0.1, maxOutputTokens: 8192 }
     });
-    
-    const response = await apiCallWithRetry(apiCall);
     
     const aiResponse = response.text;
     const correctedTextMatch = aiResponse.match(/CORRECTED_TEXT:([\s\S]*?)---/);
@@ -218,7 +139,7 @@ FIXES: [list each fix in format: "ORIGINAL|CORRECTED|TYPE|DESCRIPTION" one per l
     return { correctedText, fixes };
 }
 
-export async function enhanceAndRedrawImage(imageBase64: string, colorize: boolean, apiKey: string): Promise<string> {
+export async function enhanceAndRedrawImage(apiKey: string, imageBase64: string, colorize: boolean): Promise<string> {
     const ai = new GoogleGenAI({ apiKey });
     
     const prompt = `You are an expert image restoration tool. Your task is to enhance the quality of this image for maximum clarity and readability, as if it were for high-accuracy OCR.
@@ -230,13 +151,11 @@ CRITICAL INSTRUCTIONS:
 ${colorize ? '4. **Apply Colorization:** Colorize the image realistically, but this must NOT interfere with the legibility or accuracy of the content from instruction #2.' : ''}
 Return ONLY the enhanced image.`;
 
-    const apiCall = () => ai.models.generateContent({
+    const response = await ai.models.generateContent({
         model: IMAGE_MODEL,
         contents: { parts: [{ text: prompt }, { inlineData: { data: imageBase64, mimeType: 'image/png' }}] },
         config: { responseModalities: [Modality.IMAGE] }
     });
-    
-    const response = await apiCallWithRetry(apiCall);
 
     const imagePart = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
     if (imagePart?.inlineData) {

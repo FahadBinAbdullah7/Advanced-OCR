@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { ExtractedContent, CropRect } from './types';
 import { Header } from './components/Header';
@@ -13,8 +14,8 @@ import * as pdfjs from 'pdfjs-dist';
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs`;
 
 function App() {
+  const [apiKey, setApiKey] = useState<string | null>(() => sessionStorage.getItem('gemini-api-key'));
   const [view, setView] = useState<'ocr' | 'imageProcessor'>('ocr');
-  const [apiKey, setApiKey] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileType, setFileType] = useState<'pdf' | 'image' | null>(null);
   const [pdfDocument, setPdfDocument] = useState<pdfjs.PDFDocumentProxy | null>(null);
@@ -37,26 +38,9 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const originalCanvasData = useRef<ImageData | null>(null);
 
-  useEffect(() => {
-    const storedKey = sessionStorage.getItem('gemini-api-key');
-    if (storedKey) {
-      setApiKey(storedKey);
-    }
-  }, []);
-
   const handleKeySubmit = (key: string) => {
-    setApiKey(key);
     sessionStorage.setItem('gemini-api-key', key);
-  };
-
-  const handleApiError = (error: unknown) => {
-    if (error instanceof Error && (error.message.includes('API key not valid') || error.message.includes('API Key must be set') || error.message.includes('Requested entity was not found'))) {
-        sessionStorage.removeItem('gemini-api-key');
-        setApiKey(null);
-        setFileError("Your API key is not valid. Please enter a valid key to continue.");
-        return true; // Indicates the error was handled
-    }
-    return false;
+    setApiKey(key);
   };
 
   const renderPage = useCallback(async (
@@ -185,7 +169,7 @@ function App() {
 
   const handleExtractText = async () => {
     if (!canvasRef.current || !apiKey) {
-      setFileError("Canvas is not available or API key is missing.");
+      setFileError("API Key is missing.");
       return;
     }
     setIsProcessing(true);
@@ -201,7 +185,7 @@ function App() {
         setOcrStatus(status);
       };
 
-      const result = await performAdvancedOCR(imageBase64, updateProgress, apiKey);
+      const result = await performAdvancedOCR(apiKey, imageBase64, updateProgress);
 
       const newExtraction: ExtractedContent = {
         ...result,
@@ -217,21 +201,8 @@ function App() {
       setActiveExtraction(newExtraction);
       setOcrStatus("Text extraction completed successfully!");
     } catch (error) {
-      if (handleApiError(error)) {
-        setOcrStatus("Extraction failed");
-        return;
-      }
       console.error("Error extracting text:", error);
-      let message = "An unexpected error occurred during text extraction.";
-      if (error instanceof Error) {
-          if (error.message.toLowerCase().includes('token')) {
-              message = "The document contains too much text to process at once. Please try selecting a smaller area with the crop tool.";
-          } else if (error.message.includes('API key not valid')) {
-              message = "Your API key is not valid. Please check and enter it again.";
-          } else {
-              message = `Failed to extract text. The AI returned an error: ${error.message}`;
-          }
-      }
+      const message = error instanceof Error ? error.message : "Failed to extract text.";
       setFileError(message);
       setOcrStatus("Extraction failed");
     } finally {
@@ -242,7 +213,7 @@ function App() {
   
   const handlePerformQAC = async () => {
       if (!activeExtraction || !originalCanvasData.current || !apiKey) {
-        setFileError("Cannot perform QAC without an active extraction or API key.");
+        setFileError("Cannot perform QAC without an active extraction and API key.");
         return;
       }
       setIsQACProcessing(true);
@@ -259,7 +230,7 @@ function App() {
       const imageBase64 = tempCanvas.toDataURL('image/png').split(',')[1];
       
       try {
-          const result = await performQAC(activeExtraction.text, imageBase64, apiKey);
+          const result = await performQAC(apiKey, activeExtraction.text, imageBase64);
           const updatedExtraction = {
               ...activeExtraction,
               qacText: result.correctedText,
@@ -269,16 +240,8 @@ function App() {
           setActiveExtraction(updatedExtraction);
           setExtractions(prev => prev.map(ext => ext.id === activeExtraction.id ? updatedExtraction : ext));
       } catch (error) {
-          if (handleApiError(error)) return;
           console.error("Error performing QAC:", error);
-          let message = "An unexpected error occurred during QAC processing.";
-          if (error instanceof Error) {
-              if (error.message.toLowerCase().includes('token')) {
-                  message = "The document contains too much text to process for QAC. This can happen on very dense pages.";
-              } else {
-                  message = `Failed to perform QAC. The AI returned an error: ${error.message}`;
-              }
-          }
+          const message = error instanceof Error ? error.message : "Failed to perform QAC.";
           setFileError(message);
       } finally {
           setIsQACProcessing(false);
@@ -287,7 +250,7 @@ function App() {
 
   const handleImageAction = async (imageId: string, action: 'enhance' | 'base64', colorize: boolean) => {
      if (!activeExtraction?.detectedImages || !apiKey) {
-       setFileError("Cannot perform image action without an active extraction or API key.");
+       setFileError("Cannot perform image action without an active extraction and API key.");
        return;
      }
 
@@ -312,22 +275,14 @@ function App() {
      try {
         const imageBase64 = targetImage.base64;
         if (action === 'enhance') {
-            const resultUrl = await enhanceAndRedrawImage(imageBase64, colorize, apiKey);
+            const resultUrl = await enhanceAndRedrawImage(apiKey, imageBase64, colorize);
             updateImageState(imageId, { enhancedImageUrl: resultUrl, isProcessing: false });
         } else { // base64
             updateImageState(imageId, { isProcessing: false });
         }
      } catch(error) {
-        if (handleApiError(error)) {
-          updateImageState(imageId, { isProcessing: false });
-          return;
-        }
         console.error(`Error performing image action ${action}:`, error);
-        let message = `An unexpected error occurred while trying to ${action} the image.`;
-        if (error instanceof Error) {
-             message = `Failed to ${action} image. The AI returned an error: ${error.message}`;
-        }
-        setFileError(message);
+        setFileError(`Failed to ${action} image.`);
         updateImageState(imageId, { isProcessing: false });
      }
   };
@@ -347,7 +302,7 @@ function App() {
   }
 
   if (view === 'imageProcessor') {
-    return <ImageProcessor onBack={() => setView('ocr')} apiKey={apiKey} />;
+    return <ImageProcessor apiKey={apiKey} onBack={() => setView('ocr')} />;
   }
 
   return (
