@@ -1,6 +1,7 @@
 
-import { GoogleGenAI, Modality, Type } from "@google/genai";
-import type { QACFix, DetectedImage } from '../types';
+
+import { GoogleGenAI, Modality } from "@google/genai";
+import type { QACFix } from '../types';
 
 const OCR_MODEL = 'gemini-2.5-flash';
 const IMAGE_MODEL = 'gemini-2.5-flash-image';
@@ -33,54 +34,17 @@ CONFIDENCE: [your confidence percentage from 0-100 as an integer]`;
         config: { temperature: 0.1, maxOutputTokens: 4096 }
     });
     const ocrRaw = ocrResponse.text;
-    onProgress(60, "Processing OCR response...");
+    onProgress(80, "Processing OCR response...");
 
     const textMatch = ocrRaw.match(/TEXT:([\s\S]*?)---/);
     const confidenceMatch = ocrRaw.match(/CONFIDENCE: (\d+)/);
     const text = textMatch ? textMatch[1].trim() : ocrRaw.trim();
     const confidence = confidenceMatch ? parseInt(confidenceMatch[1], 10) : 90;
 
-    onProgress(85, "Detecting non-text images...");
-    const detectedImages = await detectImages(apiKey, imageBase64);
-    
-    onProgress(100, "Extraction and detection complete!");
+    onProgress(100, "Extraction complete!");
 
-    return { text, confidence, detectedImages };
+    return { text, confidence, detectedImages: [] };
 }
-
-async function detectImages(apiKey: string, imageBase64: string): Promise<DetectedImage[]> {
-    const ai = new GoogleGenAI({ apiKey });
-    const imagePrompt = `Analyze this image and identify ONLY non-text visual elements (photographs, diagrams, charts, etc.). EXCLUDE plain text, headings, and tables. For each visual element found, provide its bounding box coordinates as percentages from the top-left corner.
-
-Respond in this exact format:
-VISUAL_ELEMENTS_FOUND: [number]
-COORDINATES: [one per line: "x_percent,y_percent,width_percent,height_percent,description", or "None"]`;
-
-    const response = await ai.models.generateContent({
-        model: OCR_MODEL,
-        contents: { parts: [{ inlineData: { data: imageBase64, mimeType: 'image/png'}}, { text: imagePrompt }] }
-    });
-
-    const aiResponse = response.text;
-    const images: DetectedImage[] = [];
-
-    const coordinatesMatch = aiResponse.match(/COORDINATES:\s*([\s\S]*?)$/i);
-    if (coordinatesMatch) {
-        const lines = coordinatesMatch[1].trim().split('\n').filter(line => line.trim() && line.trim().toLowerCase() !== 'none');
-        for (const line of lines) {
-            const parts = line.split(',');
-            if (parts.length >= 5) {
-                const [x, y, width, height] = parts.slice(0, 4).map(p => parseFloat(p.trim()));
-                const description = parts.slice(4).join(',').trim();
-                if (![x, y, width, height].some(isNaN) && width > 5 && height > 5) {
-                    images.push({ id: `img_${Date.now()}_${Math.random()}`, x, y, width, height, description, base64: '', colorize: false });
-                }
-            }
-        }
-    }
-    return images;
-}
-
 
 export async function performQAC(apiKey: string, originalText: string, imageBase64: string): Promise<{ correctedText: string, fixes: QACFix[] }> {
     const ai = new GoogleGenAI({ apiKey });

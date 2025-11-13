@@ -6,7 +6,7 @@ import { Header } from './components/Header';
 import { LeftPanel } from './components/LeftPanel';
 import { MiddlePanel } from './components/MiddlePanel';
 import { RightPanel } from './components/RightPanel';
-import { performAdvancedOCR, performQAC, enhanceAndRedrawImage } from './services/geminiService';
+import { performAdvancedOCR, performQAC } from './services/geminiService';
 import { ApiKeyInput } from './components/ApiKeyInput';
 import { ImageProcessor } from './components/ImageProcessor';
 
@@ -248,55 +248,6 @@ function App() {
       }
   };
 
-  const handleImageAction = async (imageId: string, action: 'enhance' | 'base64', colorize: boolean) => {
-     if (!activeExtraction?.detectedImages || !apiKey) {
-       setFileError("Cannot perform image action without an active extraction and API key.");
-       return;
-     }
-
-     const updateImageState = (id: string, updates: Partial<ExtractedContent['detectedImages'][0]>) => {
-         setActiveExtraction(prev => {
-             if (!prev?.detectedImages) return prev;
-             const newImages = prev.detectedImages.map(img => img.id === id ? { ...img, ...updates } : img);
-             const newExtraction = { ...prev, detectedImages: newImages };
-             setExtractions(p => p.map(e => e.id === prev.id ? newExtraction : e));
-             return newExtraction;
-         });
-     };
-
-     updateImageState(imageId, { isProcessing: true });
-     
-     const targetImage = activeExtraction.detectedImages.find(img => img.id === imageId);
-     if (!targetImage) {
-         updateImageState(imageId, { isProcessing: false });
-         return;
-     }
-
-     try {
-        const imageBase64 = targetImage.base64;
-        if (action === 'enhance') {
-            const resultUrl = await enhanceAndRedrawImage(apiKey, imageBase64, colorize);
-            updateImageState(imageId, { enhancedImageUrl: resultUrl, isProcessing: false });
-        } else { // base64
-            updateImageState(imageId, { isProcessing: false });
-        }
-     } catch(error) {
-        console.error(`Error performing image action ${action}:`, error);
-        setFileError(`Failed to ${action} image.`);
-        updateImageState(imageId, { isProcessing: false });
-     }
-  };
-  
-  const handleColorizeToggle = (id: string, checked: boolean) => {
-    setActiveExtraction(prev => {
-        if (!prev?.detectedImages) return prev;
-        const newImages = prev.detectedImages.map(img => img.id === id ? { ...img, colorize: checked } : img);
-        const newExtraction = { ...prev, detectedImages: newImages };
-        setExtractions(p => p.map(e => e.id === prev.id ? newExtraction : e));
-        return newExtraction;
-    });
-  };
-
   if (!apiKey) {
     return <ApiKeyInput onKeySubmit={handleKeySubmit} />;
   }
@@ -346,8 +297,6 @@ function App() {
             isQACProcessing={isQACProcessing}
             extractions={extractions}
             onSelectExtraction={setActiveExtraction}
-            onImageAction={handleImageAction}
-            onColorizeToggle={handleColorizeToggle}
            />
         </div>
       </main>
