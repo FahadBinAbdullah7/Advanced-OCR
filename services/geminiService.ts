@@ -6,9 +6,9 @@ import type { QACFix, DetectedImage } from '../types';
 const OCR_MODEL = 'gemini-2.5-flash';
 const IMAGE_MODEL = 'gemini-2.5-flash-image';
 
-export async function performAdvancedOCR(imageBase64: string, onProgress: (progress: number, status: string) => void) {
+export async function performAdvancedOCR(imageBase64: string, onProgress: (progress: number, status: string) => void, apiKey: string) {
     onProgress(10, "Initializing AI-powered text extraction...");
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+    const ai = new GoogleGenAI({ apiKey });
     
     onProgress(30, "Connecting to Google Gemini AI for OCR...");
     
@@ -42,15 +42,15 @@ CONFIDENCE: [your confidence percentage from 0-100 as an integer]`;
     const confidence = confidenceMatch ? parseInt(confidenceMatch[1], 10) : 90;
 
     onProgress(85, "Detecting non-text images...");
-    const detectedImages = await detectImages(imageBase64);
+    const detectedImages = await detectImages(imageBase64, apiKey);
     
     onProgress(100, "Extraction and detection complete!");
 
     return { text, confidence, detectedImages };
 }
 
-async function detectImages(imageBase64: string): Promise<DetectedImage[]> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+async function detectImages(imageBase64: string, apiKey: string): Promise<DetectedImage[]> {
+    const ai = new GoogleGenAI({ apiKey });
     const imagePrompt = `Analyze this image and identify ONLY non-text visual elements (photographs, diagrams, charts, etc.). EXCLUDE plain text, headings, and tables. For each visual element found, provide its bounding box coordinates as percentages from the top-left corner.
 
 Respond in this exact format:
@@ -83,8 +83,8 @@ COORDINATES: [one per line: "x_percent,y_percent,width_percent,height_percent,de
 }
 
 
-export async function performQAC(originalText: string, imageBase64: string): Promise<{ correctedText: string, fixes: QACFix[] }> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+export async function performQAC(originalText: string, imageBase64: string, apiKey: string): Promise<{ correctedText: string, fixes: QACFix[] }> {
+    const ai = new GoogleGenAI({ apiKey });
     const prompt = `You are an expert text and mathematical expression correction specialist. Analyze the following OCR-extracted text, using the provided image as the absolute source of truth.
 
 **CRITICAL INSTRUCTIONS FOR TEXT CORRECTION:**
@@ -140,8 +140,8 @@ FIXES: [list each fix in format: "ORIGINAL|CORRECTED|TYPE|DESCRIPTION" one per l
     return { correctedText, fixes };
 }
 
-export async function enhanceAndRedrawImage(imageBase64: string, colorize: boolean): Promise<string> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+export async function enhanceAndRedrawImage(imageBase64: string, colorize: boolean, apiKey: string): Promise<string> {
+    const ai = new GoogleGenAI({ apiKey });
     
     const prompt = `You are an expert image restoration tool. Your task is to enhance the quality of this image for maximum clarity and readability, as if it were for high-accuracy OCR.
 

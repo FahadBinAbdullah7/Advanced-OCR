@@ -6,6 +6,7 @@ import { LeftPanel } from './components/LeftPanel';
 import { MiddlePanel } from './components/MiddlePanel';
 import { RightPanel } from './components/RightPanel';
 import { performAdvancedOCR, performQAC, enhanceAndRedrawImage } from './services/geminiService';
+import { ApiKeyInput } from './components/ApiKeyInput';
 import { ImageProcessor } from './components/ImageProcessor';
 
 import * as pdfjs from 'pdfjs-dist';
@@ -13,6 +14,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4
 
 function App() {
   const [view, setView] = useState<'ocr' | 'imageProcessor'>('ocr');
+  const [apiKey, setApiKey] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileType, setFileType] = useState<'pdf' | 'image' | null>(null);
   const [pdfDocument, setPdfDocument] = useState<pdfjs.PDFDocumentProxy | null>(null);
@@ -35,9 +37,23 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const originalCanvasData = useRef<ImageData | null>(null);
 
+  useEffect(() => {
+    const storedKey = sessionStorage.getItem('gemini-api-key');
+    if (storedKey) {
+      setApiKey(storedKey);
+    }
+  }, []);
+
+  const handleKeySubmit = (key: string) => {
+    setApiKey(key);
+    sessionStorage.setItem('gemini-api-key', key);
+  };
+
   const handleApiError = (error: unknown) => {
-    if (error instanceof Error && error.message.includes('Requested entity was not found')) {
-        setFileError("Your API key is not valid for this operation. Please check it and refresh the page.");
+    if (error instanceof Error && (error.message.includes('API key not valid') || error.message.includes('API Key must be set') || error.message.includes('Requested entity was not found'))) {
+        sessionStorage.removeItem('gemini-api-key');
+        setApiKey(null);
+        setFileError("Your API key is not valid. Please enter a valid key to continue.");
         return true; // Indicates the error was handled
     }
     return false;
@@ -168,8 +184,8 @@ function App() {
   }
 
   const handleExtractText = async () => {
-    if (!canvasRef.current) {
-      setFileError("Canvas is not available.");
+    if (!canvasRef.current || !apiKey) {
+      setFileError("Canvas is not available or API key is missing.");
       return;
     }
     setIsProcessing(true);
@@ -185,7 +201,7 @@ function App() {
         setOcrStatus(status);
       };
 
-      const result = await performAdvancedOCR(imageBase64, updateProgress);
+      const result = await performAdvancedOCR(imageBase64, updateProgress, apiKey);
 
       const newExtraction: ExtractedContent = {
         ...result,
@@ -225,8 +241,8 @@ function App() {
   };
   
   const handlePerformQAC = async () => {
-      if (!activeExtraction || !originalCanvasData.current) {
-        setFileError("Cannot perform QAC without an active extraction.");
+      if (!activeExtraction || !originalCanvasData.current || !apiKey) {
+        setFileError("Cannot perform QAC without an active extraction or API key.");
         return;
       }
       setIsQACProcessing(true);
@@ -243,7 +259,7 @@ function App() {
       const imageBase64 = tempCanvas.toDataURL('image/png').split(',')[1];
       
       try {
-          const result = await performQAC(activeExtraction.text, imageBase64);
+          const result = await performQAC(activeExtraction.text, imageBase64, apiKey);
           const updatedExtraction = {
               ...activeExtraction,
               qacText: result.correctedText,
@@ -270,8 +286,8 @@ function App() {
   };
 
   const handleImageAction = async (imageId: string, action: 'enhance' | 'base64', colorize: boolean) => {
-     if (!activeExtraction?.detectedImages) {
-       setFileError("Cannot perform image action without an active extraction.");
+     if (!activeExtraction?.detectedImages || !apiKey) {
+       setFileError("Cannot perform image action without an active extraction or API key.");
        return;
      }
 
@@ -296,7 +312,7 @@ function App() {
      try {
         const imageBase64 = targetImage.base64;
         if (action === 'enhance') {
-            const resultUrl = await enhanceAndRedrawImage(imageBase64, colorize);
+            const resultUrl = await enhanceAndRedrawImage(imageBase64, colorize, apiKey);
             updateImageState(imageId, { enhancedImageUrl: resultUrl, isProcessing: false });
         } else { // base64
             updateImageState(imageId, { isProcessing: false });
@@ -326,8 +342,12 @@ function App() {
     });
   };
 
+  if (!apiKey) {
+    return <ApiKeyInput onKeySubmit={handleKeySubmit} />;
+  }
+
   if (view === 'imageProcessor') {
-    return <ImageProcessor onBack={() => setView('ocr')} />;
+    return <ImageProcessor onBack={() => setView('ocr')} apiKey={apiKey} />;
   }
 
   return (
