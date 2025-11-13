@@ -4,7 +4,6 @@ import { enhanceAndRedrawImage } from '../services/geminiService';
 import { ImageIcon, Loader2Icon, SparklesIcon, PaintbrushIcon, ArrowLeftIcon, DownloadIcon, CodeIcon, CopyIcon } from './Icons';
 
 interface ImageProcessorProps {
-  apiKey: string;
   onBack: () => void;
 }
 
@@ -18,7 +17,7 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-export const ImageProcessor: React.FC<ImageProcessorProps> = ({ apiKey, onBack }) => {
+export const ImageProcessor: React.FC<ImageProcessorProps> = ({ onBack }) => {
   const [originalImage, setOriginalImage] = useState<{ url: string; base64: string } | null>(null);
   const [enhancedImage, setEnhancedImage] = useState<string | null>(null);
   const [base64Result, setBase64Result] = useState<string | null>(null);
@@ -53,9 +52,13 @@ export const ImageProcessor: React.FC<ImageProcessorProps> = ({ apiKey, onBack }
     setIsLoading(true);
     setEnhancedImage(null);
     try {
-      const resultUrl = await enhanceAndRedrawImage(apiKey, originalImage.base64, colorize);
+      const resultUrl = await enhanceAndRedrawImage(originalImage.base64, colorize);
       setEnhancedImage(resultUrl);
     } catch (err) {
+      if (err instanceof Error && err.message.includes('Requested entity was not found')) {
+        setError("Your API key is not valid for this operation. Please check it and refresh the page.");
+        return;
+      }
       setError(err instanceof Error ? err.message : "Failed to enhance image.");
     } finally {
       setIsLoading(false);
