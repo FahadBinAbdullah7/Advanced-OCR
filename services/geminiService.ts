@@ -5,6 +5,46 @@ import type { QACFix, DetectedImage } from '../types';
 
 const OCR_MODEL = 'gemini-2.5-flash';
 const IMAGE_MODEL = 'gemini-2.5-flash-image';
+const MAX_RETRIES = 3;
+
+/**
+ * A helper function to wrap API calls with a retry mechanism.
+ * It specifically catches "overloaded" or "503" errors and retries with exponential backoff.
+ * @param apiCall The async function to call.
+ * @param onRetry An optional callback to inform the UI about a retry attempt.
+ */
+async function apiCallWithRetry<T>(
+    apiCall: () => Promise<T>,
+    onRetry?: (attempt: number, delay: number) => void
+): Promise<T> {
+    let delay = 2000; // 2 seconds initial delay
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            return await apiCall();
+        } catch (error: any) {
+            const errorMessage = (error.message || '').toLowerCase();
+            const isOverloaded = errorMessage.includes('overloaded') || errorMessage.includes('503') || errorMessage.includes('unavailable');
+            
+            if (isOverloaded && attempt < MAX_RETRIES) {
+                if (onRetry) {
+                    onRetry(attempt, delay / 1000);
+                }
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2; // Exponential backoff
+            } else {
+                 if (isOverloaded) {
+                    // On the last attempt, throw a more user-friendly error
+                    throw new Error("The AI model is currently experiencing high traffic and could not process your request. Please try again in a few minutes.");
+                }
+                // For other errors, or on the last retry, re-throw the original error
+                throw error;
+            }
+        }
+    }
+    // This part should be unreachable due to the loop condition and throws
+    throw new Error("An unexpected error occurred in the retry logic.");
+}
+
 
 export async function performAdvancedOCR(imageBase64: string, onProgress: (progress: number, status: string) => void, apiKey: string) {
     onProgress(10, "Initializing AI-powered text extraction...");
@@ -28,11 +68,17 @@ TEXT: [all extracted text here]
 ---
 CONFIDENCE: [your confidence percentage from 0-100 as an integer]`;
     
-    const ocrResponse = await ai.models.generateContent({
+    const ocrCall = () => ai.models.generateContent({
         model: OCR_MODEL,
         contents: { parts: [{ inlineData: { data: imageBase64, mimeType: 'image/png'}}, { text: ocrPrompt }] },
         config: { temperature: 0.1, maxOutputTokens: 8192 }
     });
+
+    const ocrResponse = await apiCallWithRetry(
+        ocrCall,
+        (attempt) => onProgress(30, `Model is busy. Retrying... (Attempt ${attempt})`)
+    );
+    
     const ocrRaw = ocrResponse.text;
     onProgress(60, "Processing OCR response...");
 
@@ -85,10 +131,12 @@ Respond in this exact format:
 VISUAL_ELEMENTS_FOUND: [number]
 COORDINATES: [one per line: "x_percent,y_percent,width_percent,height_percent,description", or "None"]`;
 
-    const response = await ai.models.generateContent({
+    const apiCall = () => ai.models.generateContent({
         model: OCR_MODEL,
         contents: { parts: [{ inlineData: { data: imageBase64, mimeType: 'image/png'}}, { text: imagePrompt }] }
     });
+    
+    const response = await apiCallWithRetry(apiCall);
 
     const aiResponse = response.text;
     const images: DetectedImage[] = [];
@@ -137,11 +185,13 @@ CORRECTED_TEXT: [the fully corrected text with properly formatted math]
 ---
 FIXES: [list each fix in format: "ORIGINAL|CORRECTED|TYPE|DESCRIPTION" one per line, or "None"]`;
 
-    const response = await ai.models.generateContent({
+    const apiCall = () => ai.models.generateContent({
         model: OCR_MODEL,
         contents: { parts: [{ text: prompt }, { inlineData: { data: imageBase64, mimeType: 'image/png' }}] },
         config: { temperature: 0.1, maxOutputTokens: 8192 }
     });
+    
+    const response = await apiCallWithRetry(apiCall);
     
     const aiResponse = response.text;
     const correctedTextMatch = aiResponse.match(/CORRECTED_TEXT:([\s\S]*?)---/);
@@ -180,11 +230,13 @@ CRITICAL INSTRUCTIONS:
 ${colorize ? '4. **Apply Colorization:** Colorize the image realistically, but this must NOT interfere with the legibility or accuracy of the content from instruction #2.' : ''}
 Return ONLY the enhanced image.`;
 
-    const response = await ai.models.generateContent({
+    const apiCall = () => ai.models.generateContent({
         model: IMAGE_MODEL,
         contents: { parts: [{ text: prompt }, { inlineData: { data: imageBase64, mimeType: 'image/png' }}] },
         config: { responseModalities: [Modality.IMAGE] }
     });
+    
+    const response = await apiCallWithRetry(apiCall);
 
     const imagePart = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
     if (imagePart?.inlineData) {
