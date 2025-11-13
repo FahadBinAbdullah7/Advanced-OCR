@@ -44,6 +44,34 @@ CONFIDENCE: [your confidence percentage from 0-100 as an integer]`;
     onProgress(85, "Detecting non-text images...");
     const detectedImages = await detectImages(imageBase64, apiKey);
     
+    onProgress(90, "Cropping detected images...");
+    const sourceImage = new Image();
+    sourceImage.src = `data:image/png;base64,${imageBase64}`;
+    await new Promise(resolve => {
+        sourceImage.onload = resolve;
+        sourceImage.onerror = resolve; // Don't hang if the image fails to load
+    });
+
+    if (sourceImage.width > 0 && sourceImage.height > 0) {
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        if (tempCtx) {
+            for (const image of detectedImages) {
+                const sx = (image.x / 100) * sourceImage.width;
+                const sy = (image.y / 100) * sourceImage.height;
+                const sWidth = (image.width / 100) * sourceImage.width;
+                const sHeight = (image.height / 100) * sourceImage.height;
+                
+                if (sWidth > 0 && sHeight > 0) {
+                    tempCanvas.width = sWidth;
+                    tempCanvas.height = sHeight;
+                    tempCtx.drawImage(sourceImage, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+                    image.base64 = tempCanvas.toDataURL('image/png').split(',')[1];
+                }
+            }
+        }
+    }
+
     onProgress(100, "Extraction and detection complete!");
 
     return { text, confidence, detectedImages };
