@@ -31,7 +31,7 @@ CONFIDENCE: [your confidence percentage from 0-100 as an integer]`;
     const ocrResponse = await ai.models.generateContent({
         model: OCR_MODEL,
         contents: { parts: [{ inlineData: { data: imageBase64, mimeType: 'image/png'}}, { text: ocrPrompt }] },
-        config: { temperature: 0.1, maxOutputTokens: 8192 }
+        config: { temperature: 0.1, maxOutputTokens: 20000 }
     });
     const ocrRaw = ocrResponse.text;
     onProgress(60, "Processing OCR response...");
